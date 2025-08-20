@@ -17,7 +17,7 @@ let page = 1;
 let searchText = '';
 let totalPages = 0;
 
-document.addEventListener('DOMContentLoaded', e => {
+document.addEventListener('DOMContentLoaded', () => {
   hideLoader();
   hideLoadMoreButton();
 });
@@ -26,34 +26,37 @@ formElem.addEventListener('submit', async e => {
   e.preventDefault();
   page = 1;
   hideLoadMoreButton();
-  if (e.currentTarget.elements['search-text'].value.trim() == '') {
+
+  const inputElem = e.currentTarget.elements['search-text'];
+  const value = inputElem.value.trim();
+
+  if (value === '') {
+    iziToast.warning({
+      title: 'Warning',
+      message: 'Please enter a search term before submitting.',
+    });
     return;
   }
-  searchText = e.currentTarget.elements['search-text'].value.trim();
-  e.currentTarget.elements['search-text'].value = '';
+
+  searchText = value;
   clearGallery();
   showLoader();
+
   try {
-    const images = await getImagesByQuery(searchText);
-    if (images.hits.length != 0) {
+    const images = await getImagesByQuery(searchText, page);
+    hideLoader();
+
+    if (images.hits.length > 0) {
       totalPages = Math.ceil(images.totalHits / 15);
       createGallery(images.hits);
-      hideLoader();
-      const galleryCard = document.querySelector('.gallery-item');
-      if (galleryCard) {
-        const { height: cardHeight } = galleryCard.getBoundingClientRect();
-        window.scrollBy({
-          top: cardHeight * 2,
-          behavior: 'smooth',
-        });
-      }
-      if (totalPages < 2) {
+
+      if (totalPages > 1) {
+        showLoadMoreButton();
+      } else {
         iziToast.info({
           title: 'Message',
-          message: 'We`re sorry, but you`ve reached the end of search results.',
+          message: "We're sorry, but you've reached the end of search results.",
         });
-      } else {
-        showLoadMoreButton();
       }
     } else {
       iziToast.error({
@@ -61,27 +64,31 @@ formElem.addEventListener('submit', async e => {
         message:
           'Sorry, there are no images matching your search query. Please try again!',
       });
-      hideLoader();
     }
   } catch (error) {
     hideLoader();
     iziToast.error({
       title: 'Error',
-      message:
-        'Sorry, there are no images matching your search query. Please try again!',
+      message: 'Something went wrong. Please try again later.',
     });
-    console.log(error);
+    console.error(error);
+  } finally {
+    inputElem.value = '';
   }
 });
 
-loadBtnElem.addEventListener('click', async e => {
+loadBtnElem.addEventListener('click', async () => {
   page += 1;
+  hideLoadMoreButton();
   showLoader();
+
   try {
     const images = await getImagesByQuery(searchText, page);
-    if (images.hits.length != 0) {
+    hideLoader();
+
+    if (images.hits.length > 0) {
       createGallery(images.hits);
-      hideLoader();
+
       const galleryCard = document.querySelector('.gallery-item');
       if (galleryCard) {
         const { height: cardHeight } = galleryCard.getBoundingClientRect();
@@ -90,11 +97,13 @@ loadBtnElem.addEventListener('click', async e => {
           behavior: 'smooth',
         });
       }
-      if (totalPages < page + 1) {
-        hideLoadMoreButton();
+
+      if (page < totalPages) {
+        showLoadMoreButton();
+      } else {
         iziToast.info({
           title: 'Message',
-          message: 'We`re sorry, but you`ve reached the end of search results.',
+          message: "We're sorry, but you've reached the end of search results.",
         });
       }
     } else {
@@ -103,17 +112,13 @@ loadBtnElem.addEventListener('click', async e => {
         message:
           'Sorry, there are no images matching your search query. Please try again!',
       });
-      hideLoadMoreButton();
-      hideLoader();
     }
   } catch (error) {
     hideLoader();
-    hideLoadMoreButton();
     iziToast.error({
       title: 'Error',
-      message:
-        'Sorry, there are no images matching your search query. Please try again!',
+      message: 'Something went wrong. Please try again later.',
     });
-    console.log(error);
+    console.error(error);
   }
 });
